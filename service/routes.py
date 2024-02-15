@@ -20,10 +20,10 @@ Product Store Service with UI
 """
 from flask import jsonify, request, abort
 from flask import url_for  # noqa: F401 pylint: disable=unused-import
-from service.models import Product
+from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
-from service.models import Product, Category
+
 
 
 ######################################################################
@@ -87,11 +87,7 @@ def create_products():
 
     message = product.serialize()
 
-    #
-    # Uncomment this line of code once you implement READ A PRODUCT
-    #
-    # location_url = url_for("get_products", product_id=product.id, _external=True)
-    location_url = "/"  # delete once READ is implemented
+    location_url = url_for("get_products", product_id=product.id, _external=True)
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
 
@@ -99,6 +95,9 @@ def create_products():
 # L I S T  P R O D U C T S
 ######################################################################
 
+######################################################################
+# LIST PRODUCTS
+######################################################################
 @app.route("/products", methods=["GET"])
 def list_products():
     """Returns a list of Products"""
@@ -107,21 +106,25 @@ def list_products():
     products = []
     name = request.args.get("name")
     category = request.args.get("category")
+    available = request.args.get("available")
 
     if name:
         app.logger.info("Find by name: %s", name)
         products = Product.find_by_name(name)
-
     elif category:
         app.logger.info("Find by category: %s", category)
         # create enum from string
         category_value = getattr(Category, category.upper())
         products = Product.find_by_category(category_value)
-
+    elif available:
+        app.logger.info("Find by available: %s", available)
+        # create bool from string
+        available_value = available.lower() in ["true", "yes", "1"]
+        products = Product.find_by_availability(available_value)
     else:
         app.logger.info("Find all")
         products = Product.all()
-        
+
     results = [product.serialize() for product in products]
     app.logger.info("[%s] Products returned", len(results))
     return results, status.HTTP_200_OK
@@ -138,7 +141,7 @@ def get_products(product_id):
 
     product = Product.find(product_id)
     if not product:
-        abort(status.HTTP_404_NOT_FOUND, f"Product '{product_id}' was not found.")
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
     return product.serialize(), status.HTTP_200_OK
 
 ######################################################################
